@@ -46,7 +46,6 @@ function delay(ms: number) {
 
 export default function OrchestrationDemo({ keyPair }: Props) {
   const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
   const [statuses, setStatuses] = useState<Map<string, SubTaskStatus>>(new Map());
   const [results, setResults] = useState<Map<string, SubTaskResult>>(new Map());
   const [audit, setAudit] = useState<AuditEvent[]>([]);
@@ -59,7 +58,7 @@ export default function OrchestrationDemo({ keyPair }: Props) {
   // Per-agent jitter for the current run, keyed by agent name.
   const jitterRef = useRef<Map<string, AgentJitter>>(new Map());
 
-  async function addAudit(type: string, message: string, color?: string) {
+  async function addAudit(type: string, message: string) {
     const event = await buildAuditEvent(
       auditRef.current.length + 1,
       type,
@@ -151,7 +150,6 @@ export default function OrchestrationDemo({ keyPair }: Props) {
 
   async function handleRun() {
     setRunning(true);
-    setDone(false);
     setStatuses(new Map());
     setResults(new Map());
     setAudit([]);
@@ -184,13 +182,11 @@ export default function OrchestrationDemo({ keyPair }: Props) {
     }
 
     setRunning(false);
-    setDone(true);
     await addAudit("invoice_generated", "All phases complete. Aggregate billing finalised.");
   }
 
   function handleReset() {
     setRunning(false);
-    setDone(false);
     setStatuses(new Map());
     setResults(new Map());
     setAudit([]);

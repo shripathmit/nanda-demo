@@ -7,6 +7,9 @@ AgentFacts** two-hop path, **verifies** what it receives with real Ed25519
 cryptography, and **acts** on it. It ships with a headless demo, a test harness,
 and an interactive browser visualization.
 
+> **Live demo:** https://nanda-demo-production.up.railway.app — open the
+> **Start Here — Guided Demo** tab and press **▶ Play walkthrough**.
+
 ```
    client knows only a NAME
         │
@@ -30,7 +33,23 @@ npm install
 npm run demo      # headless Level 1 walkthrough — prints the full flow + tamper test
 npm test          # 20 assertions covering the Level 1 contract
 npm run dev       # interactive browser visualization at http://localhost:3001
+npm run build     # production build (also runs lint + type-check)
 ```
+
+### Using the browser app
+
+`npm run dev`, then open http://localhost:3001. Four tabs:
+
+1. **Start Here — Guided Demo** *(default)* — one click, plain-English narration
+   of the whole flow: a client knows only a name, finds the signed signpost,
+   fetches the verified details, and watches a forged trust score get rejected.
+   Best place to start; no prior context needed.
+2. **Problem Space** — why agent discovery needs infrastructure.
+3. **NANDA Protocol Trace** *(advanced)* — drive the flow yourself: two-hop
+   resolution per agent, then verify / route / execute / bill, with live
+   Tamper / Expire-TTL / Circuit-Break / Revoke-Credential scenarios.
+4. **Multi-Agent Economy** — four agents run a DAG task with a reproducible
+   seed; shows routing, per-agent billing, and a Merkle audit chain.
 
 `npm run demo` registers four agents, then — acting purely as a client that
 knows only a **name** — resolves three of them through both hops, verifies every
@@ -73,6 +92,9 @@ independently of the index.
 
 Level 1 works end-to-end on its own; these were added on top:
 
+- **Guided walkthrough** (default tab): a one-click, auto-playing, plain-English
+  narration of the core flow with a live tamper step — built so a non-expert can
+  understand the whole prototype in under a minute.
 - **Headless CLI demo** (`npm run demo`) and a **20-case test harness**
   (`npm test`) exercising the real `app/lib` code, not a copy.
 - **Interactive visualization** (`npm run dev`): a step-by-step protocol trace
@@ -82,6 +104,7 @@ Level 1 works end-to-end on its own; these were added on top:
 - **Real CS under the hood**: a TTL-aware LRU cache for AgentFacts, a binary
   max-heap adaptive router, Kahn's-algorithm DAG scheduler, a circuit-breaker
   state machine, and a SHA-256 Merkle-chained audit log.
+- **Deployed** to Railway (Next.js production build) at the live URL above.
 
 ## What I set aside (next steps)
 
@@ -105,7 +128,18 @@ build, demo, and test suite.
 app/lib/        crypto.ts (Ed25519, canonical JSON, SHA-256), registry.ts (index),
                 nanda.ts (resolve/verify/route/bill), cache.ts, heap.ts, dag.ts,
                 circuit-breaker.ts, rng.ts, agents.ts, types.ts
-app/components/  browser visualization (ProtocolDemo, OrchestrationDemo, graphs)
+app/components/  browser UI (GuidedDemo, ProtocolDemo, OrchestrationDemo, graphs)
 scripts/demo.ts  headless Level 1 walkthrough
 tests/           Level 1 contract tests (vitest)
 ```
+
+## Deploying
+
+Hosted on Railway. To redeploy from the repo root:
+
+```bash
+railway up --service nanda-demo
+```
+
+The `start` script binds Next.js to Railway's injected `$PORT`
+(`next start -p ${PORT:-3000}`).

@@ -150,12 +150,21 @@ export async function mockFetchAgentFacts(
 
 // ─── Verify ──────────────────────────────────────────────────────────────────
 
+/** Return a shallow copy of `obj` without the given (runtime-only) keys. */
+function omit<T extends object>(obj: T, keys: string[]): object {
+  const copy = { ...obj } as Record<string, unknown>;
+  for (const k of keys) delete copy[k];
+  return copy;
+}
+
 export async function verifyAgentAddr(
   addr: AgentAddr,
   publicKey: CryptoKey
 ): Promise<boolean> {
-  const { signature, verified: _v, ...body } = addr;
-  return verifyPayload(publicKey, body, signature);
+  // Strip the signature itself and the runtime-only `verified` flag — neither
+  // was part of the signed body.
+  const body = omit(addr, ["signature", "verified"]);
+  return verifyPayload(publicKey, body, addr.signature);
 }
 
 export async function verifyAgentFacts(
@@ -163,9 +172,9 @@ export async function verifyAgentFacts(
   publicKey: CryptoKey,
   tamperedBody?: Partial<AgentFactsBody>
 ): Promise<boolean> {
-  const { signature, verified: _v, cacheHit: _c, ...body } = facts;
+  const body = omit(facts, ["signature", "verified", "cacheHit"]);
   const payloadToVerify = tamperedBody ? { ...body, ...tamperedBody } : body;
-  return verifyPayload(publicKey, payloadToVerify, signature);
+  return verifyPayload(publicKey, payloadToVerify, facts.signature);
 }
 
 export async function runVerification(

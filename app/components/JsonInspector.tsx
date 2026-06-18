@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Edit3, RotateCcw, AlertTriangle } from "lucide-react";
 
 interface Props {
@@ -17,10 +17,13 @@ export default function JsonInspector({ data, onTamper, readOnly = false, label 
 
   const original = JSON.stringify(data, null, 2);
 
-  useEffect(() => {
+  // Seed the editor from the current data only when editing begins; while not
+  // editing we render `original` directly, so no effect-driven sync is needed.
+  function startEdit() {
     setText(original);
     setParseError(null);
-  }, [original]);
+    setEditing(true);
+  }
 
   function handleChange(v: string) {
     setText(v);
@@ -65,7 +68,7 @@ export default function JsonInspector({ data, onTamper, readOnly = false, label 
                 </button>
               )}
               <button
-                onClick={() => (editing ? handleSubmit() : setEditing(true))}
+                onClick={() => (editing ? handleSubmit() : startEdit())}
                 className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded border transition-colors ${
                   editing
                     ? "bg-red-950/60 border-red-800/60 text-red-400 hover:bg-red-900/60"

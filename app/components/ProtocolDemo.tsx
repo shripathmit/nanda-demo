@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, AlertCircle, Loader2, ShieldCheck,
-  ShieldX, Zap, RotateCcw, Lock, Wifi, WifiOff, ArrowRight, Database, FileJson
+  ShieldX, RotateCcw, Lock, Wifi, WifiOff, ArrowRight, Database, FileJson
 } from "lucide-react";
 import type {
-  AgentDef, AgentAddr, AgentFacts, AgentFactsBody, VerificationResult,
+  AgentAddr, AgentFacts, AgentFactsBody, VerificationResult,
   RouteCandidate, UsageReport, Invoice, AuditEvent, DemoStage, Task,
 } from "@/app/lib/types";
 import type { KeyPair } from "@/app/lib/crypto";
