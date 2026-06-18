@@ -14,6 +14,7 @@ import type {
 } from "./types";
 import { signPayload, verifyPayload, canonicalJson } from "./crypto";
 import type { KeyPair } from "./crypto";
+import type { AgentJitter } from "./rng";
 import { MaxHeap } from "./heap";
 import { getBreakerForAgent } from "./circuit-breaker";
 import { globalCache } from "./cache";
@@ -64,10 +65,15 @@ export async function mockIndexResolve(
 export function buildAgentFactsBody(
   agent: AgentDef,
   addr: AgentAddr,
-  opts: { tampered?: boolean; highLoad?: boolean; credentialRevoked?: boolean } = {}
+  opts: { tampered?: boolean; highLoad?: boolean; credentialRevoked?: boolean; jitter?: AgentJitter } = {}
 ): AgentFactsBody {
-  const { tampered = false, highLoad = false, credentialRevoked = false } = opts;
-  const surge = highLoad ? 1.8 : 1.0;
+  const { tampered = false, highLoad = false, credentialRevoked = false, jitter } = opts;
+  // High-load scenario forces a hard surge; otherwise use seeded run jitter.
+  const surge = highLoad ? 1.8 : jitter?.surge ?? 1.0;
+  const latencyMs = Math.round(agent.latencyMs * (jitter?.latencyMult ?? 1));
+  const currentLoad = highLoad
+    ? 0.91
+    : clamp((agent.load + (jitter?.loadDelta ?? 0)), 0, 0.99);
 
   return {
     type: "AgentFacts",
@@ -104,16 +110,16 @@ export function buildAgentFactsBody(
         id: `${slug(agent.name)}-${agent.region}`,
         url: tampered ? "https://attacker.demo/reason" : agent.endpoint,
         region: agent.region,
-        latency_ms: agent.latencyMs,
+        latency_ms: latencyMs,
         health: "healthy",
-        load: highLoad ? 0.91 : agent.load,
+        load: currentLoad,
         capabilities: agent.capabilities,
       },
     ],
     telemetry: {
       availability_24h: agent.availability,
-      latency_p95_ms: agent.latencyMs,
-      current_load: highLoad ? 0.91 : agent.load,
+      latency_p95_ms: latencyMs,
+      current_load: currentLoad,
       quality_score: agent.quality,
     },
     ttl: 120,
@@ -126,7 +132,7 @@ export async function mockFetchAgentFacts(
   agent: AgentDef,
   addr: AgentAddr,
   keyPair: KeyPair,
-  opts: { tampered?: boolean; highLoad?: boolean; credentialRevoked?: boolean } = {}
+  opts: { tampered?: boolean; highLoad?: boolean; credentialRevoked?: boolean; jitter?: AgentJitter } = {}
 ): Promise<AgentFacts> {
   // Cache check
   const cached = globalCache.get(addr.agent_id);

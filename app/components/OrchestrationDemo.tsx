@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, XCircle, Play, RotateCcw, Network } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Play, RotateCcw, Dices } from "lucide-react";
 import type {
-  SubTask, SubTaskResult, SubTaskStatus, AuditEvent, Invoice,
+  SubTask, SubTaskResult, SubTaskStatus, AuditEvent,
 } from "@/app/lib/types";
 import type { KeyPair } from "@/app/lib/crypto";
 import {
   mockIndexResolve, mockFetchAgentFacts, runVerification,
   scoreCandidate, adaptiveRoute, estimateUsage, makeInvoice,
-  executeReasoning,
 } from "@/app/lib/nanda";
 import { buildAuditEvent, GENESIS_HASH } from "@/app/lib/audit";
 import { topologicalPhases } from "@/app/lib/dag";
-import { AGENTS, AGENT_MAP, VC_SUBTASKS } from "@/app/lib/agents";
+import { AGENTS, VC_SUBTASKS } from "@/app/lib/agents";
 import { globalCache } from "@/app/lib/cache";
+import { mulberry32, makeAgentJitter, randomSeed, type AgentJitter } from "@/app/lib/rng";
 import AuditChain from "./AuditChain";
 import BillingChart from "./BillingChart";
 import DagGraph from "./DagGraph";
@@ -50,8 +50,14 @@ export default function OrchestrationDemo({ keyPair }: Props) {
   const [statuses, setStatuses] = useState<Map<string, SubTaskStatus>>(new Map());
   const [results, setResults] = useState<Map<string, SubTaskResult>>(new Map());
   const [audit, setAudit] = useState<AuditEvent[]>([]);
+  // Seed drives per-run telemetry jitter. Empty input → random seed each run;
+  // a fixed value reproduces a run exactly.
+  const [seedInput, setSeedInput] = useState("");
+  const [lastSeed, setLastSeed] = useState<number | null>(null);
   const prevHashRef = useRef(GENESIS_HASH);
   const auditRef = useRef<AuditEvent[]>([]);
+  // Per-agent jitter for the current run, keyed by agent name.
+  const jitterRef = useRef<Map<string, AgentJitter>>(new Map());
 
   async function addAudit(type: string, message: string, color?: string) {
     const event = await buildAuditEvent(
@@ -91,10 +97,14 @@ export default function OrchestrationDemo({ keyPair }: Props) {
       complexity: st.complexity,
     };
 
-    // Resolve all agents, pick the preferred or best match
+    // Resolve all agents, pick the preferred or best match.
+    // Per-run jitter (from jitterRef) perturbs telemetry so routing and cost
+    // vary run-to-run while staying reproducible for a given seed.
     const resolvedAddrs = await Promise.all(AGENTS.map((a) => mockIndexResolve(a, keyPair)));
     const fetchedFacts = await Promise.all(
-      AGENTS.map((a, i) => mockFetchAgentFacts(a, resolvedAddrs[i], keyPair))
+      AGENTS.map((a, i) =>
+        mockFetchAgentFacts(a, resolvedAddrs[i], keyPair, { jitter: jitterRef.current.get(a.name) })
+      )
     );
     await addAudit("agentfacts_fetched", `[${st.label}] AgentFacts retrieved for ${AGENTS.length} candidates.`);
 
@@ -149,7 +159,17 @@ export default function OrchestrationDemo({ keyPair }: Props) {
     prevHashRef.current = GENESIS_HASH;
     globalCache.snapshot().forEach(({ agentId }) => globalCache.invalidate(agentId));
 
-    await addAudit("task_selected", "VC Due Diligence initiated. DAG decomposed into 4 subtasks across 2 execution phases.");
+    // Resolve seed: use the user's value if it parses, else a fresh random seed.
+    const parsed = parseInt(seedInput.trim(), 10);
+    const seed = seedInput.trim() !== "" && Number.isFinite(parsed) ? parsed >>> 0 : randomSeed();
+    setLastSeed(seed);
+    setSeedInput(String(seed));
+
+    // Build deterministic per-agent jitter for this run from the seed.
+    const rng = mulberry32(seed);
+    jitterRef.current = new Map(AGENTS.map((a) => [a.name, makeAgentJitter(rng)]));
+
+    await addAudit("task_selected", `VC Due Diligence initiated (seed ${seed}). DAG decomposed into 4 subtasks across 2 execution phases.`);
 
     const phases = topologicalPhases(VC_SUBTASKS);
 
@@ -204,23 +224,50 @@ export default function OrchestrationDemo({ keyPair }: Props) {
               A Client Orchestrator decomposes this task into a DAG of subtasks and dispatches each to the best-matched reasoning agent via independent NANDA resolution flows.
             </p>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={handleReset}
-              disabled={running}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors disabled:opacity-40"
-            >
-              <RotateCcw size={12} />
-              Reset
-            </button>
-            <button
-              onClick={handleRun}
-              disabled={running}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40"
-            >
-              {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-              {running ? "Running…" : "Run Orchestration"}
-            </button>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex gap-2">
+              <button
+                onClick={handleReset}
+                disabled={running}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors disabled:opacity-40"
+              >
+                <RotateCcw size={12} />
+                Reset
+              </button>
+              <button
+                onClick={handleRun}
+                disabled={running}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40"
+              >
+                {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                {running ? "Running…" : "Run Orchestration"}
+              </button>
+            </div>
+            {/* Seed control — blank = random run, fixed value = reproducible run */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Seed</span>
+              <input
+                value={seedInput}
+                onChange={(e) => setSeedInput(e.target.value.replace(/[^0-9]/g, ""))}
+                disabled={running}
+                placeholder="random"
+                className="w-28 px-2 py-1 rounded-md bg-zinc-950 border border-zinc-700 text-[11px] font-mono text-zinc-300 placeholder:text-zinc-600 focus:border-cyan-600 focus:outline-none disabled:opacity-40"
+              />
+              <button
+                onClick={() => setSeedInput("")}
+                disabled={running}
+                title="Clear seed (next run is random)"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700 transition-colors disabled:opacity-40"
+              >
+                <Dices size={11} />
+                Randomize
+              </button>
+            </div>
+            {lastSeed !== null && (
+              <div className="text-[10px] text-zinc-600 font-mono">
+                last run seed: <span className="text-cyan-500">{lastSeed}</span> — reuse to reproduce
+              </div>
+            )}
           </div>
         </div>
       </div>
