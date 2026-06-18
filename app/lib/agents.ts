@@ -1,0 +1,137 @@
+"use client";
+
+import type { AgentDef, Task, SubTask } from "./types";
+
+export const AGENTS: AgentDef[] = [
+  {
+    name: "@fast-thinker",
+    label: "Fast Thinker",
+    description: "Low-cost, low-latency reasoning for simple tasks.",
+    capabilities: ["quick_reasoning", "summarization", "simple_planning"],
+    trustScore: 0.72,
+    baseFee: 0.02,
+    latencyMs: 800,
+    availability: 0.995,
+    load: 0.31,
+    quality: 0.72,
+    region: "us-east",
+    endpoint: "https://fast-thinker.demo/reason",
+    issuer: "Demo Capability Authority",
+  },
+  {
+    name: "@deep-thinker",
+    label: "Deep Thinker",
+    description: "High-quality multi-step strategic reasoning.",
+    capabilities: ["deep_reasoning", "strategic_analysis", "multi_step_planning"],
+    trustScore: 0.94,
+    baseFee: 0.12,
+    latencyMs: 2400,
+    availability: 0.997,
+    load: 0.42,
+    quality: 0.94,
+    region: "us-east",
+    endpoint: "https://deep-thinker.demo/reason",
+    issuer: "Demo Capability Authority",
+  },
+  {
+    name: "@math-expert",
+    label: "Math Expert",
+    description: "Mathematical reasoning, forecasting, and optimisation.",
+    capabilities: ["mathematical_reasoning", "optimization", "forecasting"],
+    trustScore: 0.88,
+    baseFee: 0.08,
+    latencyMs: 1600,
+    availability: 0.991,
+    load: 0.28,
+    quality: 0.9,
+    region: "us-west",
+    endpoint: "https://math-expert.demo/reason",
+    issuer: "Quant Capability Authority",
+  },
+  {
+    name: "@market-analyst",
+    label: "Market Analyst",
+    description: "Business and market analysis reasoning.",
+    capabilities: ["market_research", "competitive_analysis", "pricing_strategy", "strategic_analysis"],
+    trustScore: 0.86,
+    baseFee: 0.09,
+    latencyMs: 1900,
+    availability: 0.989,
+    load: 0.36,
+    quality: 0.87,
+    region: "eu-west",
+    endpoint: "https://market-analyst.demo/reason",
+    issuer: "Market Intelligence Authority",
+  },
+];
+
+export const AGENT_MAP = new Map(AGENTS.map((a) => [a.name, a]));
+
+export const TASKS: Task[] = [
+  {
+    id: "startup-risk",
+    title: "Startup Risk Review",
+    prompt: "Evaluate this startup idea and identify the top risks.",
+    requiredCapability: "strategic_analysis",
+    maxPrice: 1.0,
+    minTrust: 0.8,
+    latencyBudgetMs: 4000,
+    complexity: "high",
+  },
+  {
+    id: "quick-summary",
+    title: "Quick Summary",
+    prompt: "Summarise this product update in three bullets.",
+    requiredCapability: "summarization",
+    maxPrice: 0.2,
+    minTrust: 0.6,
+    latencyBudgetMs: 1500,
+    complexity: "low",
+  },
+  {
+    id: "optimization",
+    title: "Optimisation Problem",
+    prompt: "Find the best allocation strategy under cost and capacity constraints.",
+    requiredCapability: "optimization",
+    maxPrice: 0.75,
+    minTrust: 0.8,
+    latencyBudgetMs: 3000,
+    complexity: "medium",
+  },
+];
+
+// DAG for the multi-agent orchestration demo (VC Due Diligence)
+export const VC_SUBTASKS: SubTask[] = [
+  {
+    id: "market_sizing",
+    label: "Market Sizing",
+    capability: "market_research",
+    dependsOn: [],
+    preferredAgent: "@market-analyst",
+    complexity: "medium",
+  },
+  {
+    id: "financial_modeling",
+    label: "Financial Modelling",
+    capability: "optimization",
+    dependsOn: [],
+    preferredAgent: "@math-expert",
+    complexity: "medium",
+  },
+  {
+    id: "competitive_analysis",
+    label: "Competitive Analysis",
+    capability: "strategic_analysis",
+    dependsOn: ["market_sizing"],
+    preferredAgent: "@deep-thinker",
+    complexity: "high",
+  },
+  {
+    id: "risk_synthesis",
+    label: "Risk Synthesis",
+    capability: "deep_reasoning",
+    dependsOn: ["market_sizing", "financial_modeling"],
+    preferredAgent: "@deep-thinker",
+    complexity: "high",
+  },
+];
