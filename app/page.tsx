@@ -5,18 +5,20 @@ import { generateKeyPair } from "@/app/lib/crypto";
 import type { KeyPair } from "@/app/lib/crypto";
 import type { ViewName } from "@/app/lib/types";
 import ProblemView from "@/app/components/ProblemView";
+import GuidedDemo from "@/app/components/GuidedDemo";
 import ProtocolDemo from "@/app/components/ProtocolDemo";
 import OrchestrationDemo from "@/app/components/OrchestrationDemo";
 import { Network, Loader2 } from "lucide-react";
 
 const TABS: { id: ViewName; label: string; desc: string }[] = [
+  { id: "guided", label: "Start Here — Guided Demo", desc: "One-click, plain-English walkthrough of the core flow" },
   { id: "problem", label: "Problem Space", desc: "Why the agentic internet needs infrastructure" },
-  { id: "protocol", label: "NANDA Protocol Trace", desc: "Live single-agent flow with real Ed25519 cryptography" },
+  { id: "protocol", label: "NANDA Protocol Trace", desc: "Drive the full flow yourself (advanced)" },
   { id: "orchestration", label: "Multi-Agent Economy", desc: "DAG orchestration with aggregate billing" },
 ];
 
 export default function Home() {
-  const [view, setView] = useState<ViewName>("problem");
+  const [view, setView] = useState<ViewName>("guided");
   const [keyPair, setKeyPair] = useState<KeyPair | null>(null);
 
   useEffect(() => {
@@ -95,6 +97,7 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {view === "guided" && <GuidedDemo keyPair={keyPair} />}
             {view === "problem" && <ProblemView />}
             {view === "protocol" && <ProtocolDemo keyPair={keyPair} />}
             {view === "orchestration" && <OrchestrationDemo keyPair={keyPair} />}

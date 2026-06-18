@@ -1,4 +1,4 @@
-export type ViewName = "problem" | "protocol" | "orchestration";
+export type ViewName = "guided" | "problem" | "protocol" | "orchestration";
 
 export type DemoStage =
   | "idle"
